@@ -26,6 +26,8 @@
 #
 from time import time
 
+timingObjectList = []
+
 class timing:
     def __init__(self,nameStr,filterSteps):
         self.name = nameStr
@@ -34,6 +36,7 @@ class timing:
         self.max = float("-inf")
         self.movingAvg = 0.0
         self.lastTime = 0.0
+        timingObjectList.append( self )
 
     def measureDeltaTime(self, old ):
         now = time()
@@ -48,3 +51,7 @@ class timing:
 
     def printStats(self):
         print '%s min=%f < avg=%f < max=%f' % ( self.name, self.min, self.movingAvg, self.max )
+
+def printStats():
+    for i in timingObjectList:
+        i.printStats()
