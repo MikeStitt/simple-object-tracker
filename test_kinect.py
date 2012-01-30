@@ -29,17 +29,13 @@ from opencv.cv import *
 from opencv import adaptors
 from opencv.highgui import *
 from time import time
-from rx_config import *
 from freenect import sync_get_depth as get_depth, sync_get_video as get_video
-# TBD figure out what's in opencv.cv vs. cv and are they compatible?
-# from cv import ShowImage as CV_ShowImage 
 import numpy as np
 
-# Select a camera to capture from
-##capture = cvCreateCameraCapture( 0 )
+from rx_config import *
+from timing_stats import *
 
 # Grab an initial frame to get the video size
-##frame = cvQueryFrame(capture)
 global depth, rgb
 (depth,_), (rgb,_) = get_depth(), get_video()
 
@@ -71,6 +67,18 @@ before = 0
 deltaTime = 0
 beat=0
 
+frameToFrame = timing( 'frame to frame', 15)
+beatToBeat = timing( 'beat to beat', 15)
+convertColorTime = timing( 'convert color', 15 )
+smoothTime= timing( 'smooth', 15 )
+inRangeTime = timing( 'in range', 15 )
+copy1Time= timing( 'copy1', 15 )
+cannyTime = timing( 'canny', 15 )
+copy2Time = timing( 'copy2', 15 )
+findContoursTime = timing( 'find contours', 15 )
+procContoursTime = timing( 'process contours', 15 )
+showImageTime = timing( 'show image', 15 )
+
 while True:
     # process beat frame out of "period" beats
     i = i + 1
@@ -86,6 +94,8 @@ while True:
         # Get a fresh frame
         (depth,_), (rgb,_) = get_depth(), get_video()
         
+        frameToFrame.measureDeltaTime(frameToFrame)
+
         # Build a two panel color image
         #d3 = np.dstack((depth,depth,depth)).astype(np.uint8)
         #da = np.hstack((d3,rgbFrame))
@@ -97,43 +107,45 @@ while True:
         #depth1 = adaptors.NumPy2Ipl(depth)
         depth1 = depth
 
-        x = 0
-        y = 0
-        rawDisparity = cv.cvGet2D( depth1, y, x )[0]
-        distance1a = (12.36 * math.tan(rawDisparity / 2842.5 + 1.1863))*0.3937
-        distance2a = (100.0 / (-0.00307*rawDisparity+3.33))*0.3937
+        if 0:
+            x = 0
+            y = 0
+            rawDisparity = cv.cvGet2D( depth1, y, x )[0]
+            distance1a = (12.36 * math.tan(rawDisparity / 2842.5 + 1.1863))*0.3937
+            distance2a = (100.0 / (-0.00307*rawDisparity+3.33))*0.3937
 
-        x = 320
-        y = 0
-        rawDisparity = cv.cvGet2D( depth1, y, x )[0]
-        distance1b = (12.36 * math.tan(rawDisparity / 2842.5 + 1.1863))*0.3937
-        distance2b = (100.0 / (-0.00307*rawDisparity+3.33))*0.3937
+            x = 320
+            y = 0
+            rawDisparity = cv.cvGet2D( depth1, y, x )[0]
+            distance1b = (12.36 * math.tan(rawDisparity / 2842.5 + 1.1863))*0.3937
+            distance2b = (100.0 / (-0.00307*rawDisparity+3.33))*0.3937
 
-        x = 631
-        y = 0
-        rawDisparity = cv.cvGet2D( depth1, y, x )[0]
-        distance1c = (12.36 * math.tan(rawDisparity / 2842.5 + 1.1863))*0.3937
-        distance2c = (100.0 / (-0.00307*rawDisparity+3.33))*0.3937
-        rgbFrame = adaptors.NumPy2Ipl(rgb)
-        print "c=%d r=%d depth=%d in=%f in=%f in=%f" % ( x, y, rawDisparity, distance1a, distance1b, distance1c
- ) 
-
-        #cvCvtColor(rgbFrame,rgbFrame,CV_RGB2BGR)
+            x = 631
+            y = 0
+            rawDisparity = cv.cvGet2D( depth1, y, x )[0]
+            distance1c = (12.36 * math.tan(rawDisparity / 2842.5 + 1.1863))*0.3937
+            distance2c = (100.0 / (-0.00307*rawDisparity+3.33))*0.3937
+            print "c=%d r=%d depth=%d in=%f in=%f in=%f" % ( x, y, rawDisparity, distance1a, distance1b, distance1c ) 
 
         if beat==0:
-            now = time()
-            if before > 0 :
-            	deltaTime = now - before
-            before = now	
+            beatToBeat.measureDeltaTime(beatToBeat)
+            #now = time()
+            #if before > 0 :
+            #	deltaTime = now - before
+            #before = now	
             
             # convert frame from Blue.Green.Red to Hue.Saturation.Value
             # image "rgbFrame" -> image "hsvImage"
+
+            rgbFrame = adaptors.NumPy2Ipl(rgb)
             cvCvtColor(rgbFrame,hsvImage,CV_BGR2HSV)
-        
+            convertColorTime.measureDeltaTime(beatToBeat)
+
             # gaussian smooth the Hue.Saturation.Value image
             # image "hsvImage" -> image "smooth"
             smoothSize=9
             cvSmooth(hsvImage,smooth,CV_GAUSSIAN,smoothSize,smoothSize)
+            smoothTime.measureDeltaTime(convertColorTime)
         
         
             # find the target in the range:  minHSV < target < maxHSV
@@ -147,6 +159,7 @@ while True:
                                getConfig().colorFilter.maxVal+1, 
                                0 )
             cvInRangeS(smooth,minHSV,maxHSV,inRange)
+            inRangeTime.measureDeltaTime(smoothTime)
         
             # make a debug image whose pixels are 
             # frame when minHSV < threshold < maxHSV
@@ -154,16 +167,19 @@ while True:
             # images "rgbFrame" AND "inRange" -> image "rgbFrameAndinRange"
             cvZero(rgbFrameAndinRange)
             cvCopy(rgbFrame,rgbFrameAndinRange,inRange)
+            copy1Time.measureDeltaTime(inRangeTime)
         
             # run Canny edge detection on inRange
             # image "inRange" -> image "canny"
             cvCanny(inRange,canny,getConfig().findPoly.cannyThreshold1,
                     getConfig().findPoly.cannyThreshold2,
                     getConfig().findPoly.cannyAperature)
+            cannyTime.measureDeltaTime(copy1Time)
         
             # copy canny to canny2 because cvFindContours will overwrite canny2
             # image "canny" -> image "canny2"
             cvCopy(canny,canny2)
+            copy2Time.measureDeltaTime(cannyTime)
         
             # Find all contours in the canny edged detected image
             # image "canny2" -> list of contours: "cont"
@@ -173,6 +189,8 @@ while True:
                                                    cv.CV_RETR_LIST,
                                                    cv.CV_CHAIN_APPROX_SIMPLE,
                                                    cv.cvPoint (0,0))
+
+            findContoursTime.measureDeltaTime(copy2Time)
             # if we found a list of contours
             if contourList:
                 # look at each contour
@@ -210,17 +228,29 @@ while True:
                                     rawDisparity = cv.cvGet2D( depth1, poly[i].y, poly[i].x )[0]
                                     distance1 = (12.36 * math.tan(rawDisparity / 2842.5 + 1.1863))*0.3937
                                     distance2 = (100.0 / (-0.00307*rawDisparity+3.33))*0.3937
-                                    print "corner=%d c=%d r=%d depth=%d cm=%f cm=%f" % ( i, poly[i].x, poly[i].y, rawDisparity, distance1, distance2 ) 
-                            
-        
+                                    print "corner=%d c=%d r=%d depth=%d cm=%f cm=%f" % ( i, poly[i].x, poly[i].y, rawDisparity, distance1, distance2 )         
+            procContoursTime.measureDeltaTime(findContoursTime)
             # display the captured frame, rgbFrameAndThresh, and canny images for debug
             cvShowImage('window-capture',rgbFrame)
             cvShowImage('thresh',rgbFrameAndinRange)
             cvShowImage('canny',canny)
             cvShowImage('depth',depth1)
+            showImageTime.measureDeltaTime(procContoursTime)
 
-            #print 'i=%d delta_time=%f sat<%d %d<val' % ( i, deltaTime, 
-            #                                             getConfig().colorFilter.maxSat, 
-            #                                             getConfig().colorFilter.minVal )
+            print 'i=%d' % ( i )
+
     # wait 1 milliseconds for a key press
-    k = cvWaitKey (1)
+    k = cvWaitKey(1)
+    if k > -1 :
+        frameToFrame.printStats()
+        beatToBeat.printStats()
+        convertColorTime.printStats()
+        smoothTime.printStats()
+        inRangeTime.printStats()
+        copy1Time.printStats()
+        cannyTime.printStats()
+        copy2Time.printStats()
+        findContoursTime.printStats()
+        procContoursTime.printStats()
+        showImageTime.printStats()
+        quit()

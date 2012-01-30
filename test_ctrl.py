@@ -155,7 +155,7 @@ if __name__ == "__main__":
 	        ui.ContourMinAreaHorizontalSlider.setValue(500)
 	        ui.ContourDeviationRatioHorizontalSlider.setValue(60)
 
-	        ui.BeatPeriodHorizontalSlider.setValue(2)
+	        ui.BeatPeriodHorizontalSlider.setValue(3)
 
 		MainWindow.show()
 		sys.exit(app.exec_())
