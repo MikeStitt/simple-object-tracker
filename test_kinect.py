@@ -41,7 +41,8 @@ global depth, rgb
 
 rgbFrameSize = cvGetSize(rgb)
 depthSize = cvGetSize(depth)
-dwnFrameSize = cvSize(rgbFrameSize.width / 2,rgbFrameSize.height / 2)
+dwnFrameSize = cvSize(rgbFrameSize.width / 2, rgbFrameSize.height / 2)
+dwnDepthSize = cvSize(depthSize.width / 2, depthSize.height / 2)
 
 print 'rgbSize = %d %d' % (rgbFrameSize.width, rgbFrameSize.height)
 print 'depthSize = %d %d' % (depthSize.width, depthSize.height)
@@ -50,6 +51,8 @@ print 'depthSize = %d %d' % (depthSize.width, depthSize.height)
 # Allocate processing chain image buffers the same size as
 # the video frame
 rgbFrame        = cvCreateImage( rgbFrameSize, cv.IPL_DEPTH_8U, 3 )
+depthFrame      = cvCreateImage( depthSize,    cv.IPL_DEPTH_16U, 3 )
+dwnDepthFrame   = cvCreateImage( dwnDepthSize,    cv.IPL_DEPTH_16U, 1 )#tbd 3 or 1?
 dwnFrame        = cvCreateImage( dwnFrameSize, cv.IPL_DEPTH_8U, 3 )
 hsvImage        = cvCreateImage( dwnFrameSize, cv.IPL_DEPTH_8U, 3 )
 smooth          = cvCreateImage( dwnFrameSize, cv.IPL_DEPTH_8U, 3 )
@@ -57,7 +60,7 @@ inRange         = cvCreateImage( dwnFrameSize, cv.IPL_DEPTH_8U, 1 )
 canny           = cvCreateImage( dwnFrameSize, cv.IPL_DEPTH_8U, 1 )
 canny2          = cvCreateImage( dwnFrameSize, cv.IPL_DEPTH_8U, 1 )
 rgbFrameAndinRange = cvCreateImage( dwnFrameSize, cv.IPL_DEPTH_8U, 3 )
-depth1           = cvCreateImage( dwnFrameSize, cv.IPL_DEPTH_16U, 1 )
+#depth1           = cvCreateImage( dwnFrameSize, cv.IPL_DEPTH_16U, 1 )
 
 # allocate memory for contours
 storContours = cv.cvCreateMemStorage(0);
@@ -110,24 +113,24 @@ while True:
 
         #depth0 = depth.astype(np.uint16)
         #depth1 = adaptors.NumPy2Ipl(depth)
-        depth1 = depth
+        #depth1 = depth
 
         if 0:
             x = 0
             y = 0
-            rawDisparity = cv.cvGet2D( depth1, y, x )[0]
+            rawDisparity = cv.cvGet2D( depth, y, x )[0]
             distance1a = (12.36 * math.tan(rawDisparity / 2842.5 + 1.1863))*0.3937
             distance2a = (100.0 / (-0.00307*rawDisparity+3.33))*0.3937
 
             x = 320
             y = 0
-            rawDisparity = cv.cvGet2D( depth1, y, x )[0]
+            rawDisparity = cv.cvGet2D( depth, y, x )[0]
             distance1b = (12.36 * math.tan(rawDisparity / 2842.5 + 1.1863))*0.3937
             distance2b = (100.0 / (-0.00307*rawDisparity+3.33))*0.3937
 
             x = 631
             y = 0
-            rawDisparity = cv.cvGet2D( depth1, y, x )[0]
+            rawDisparity = cv.cvGet2D( depth, y, x )[0]
             distance1c = (12.36 * math.tan(rawDisparity / 2842.5 + 1.1863))*0.3937
             distance2c = (100.0 / (-0.00307*rawDisparity+3.33))*0.3937
             print "c=%d r=%d depth=%d in=%f in=%f in=%f" % ( x, y, rawDisparity, distance1a, distance1b, distance1c ) 
@@ -139,8 +142,10 @@ while True:
             # image "rgbFrame" -> image "hsvImage"
 
             rgbFrame = adaptors.NumPy2Ipl(rgb)
+            #depthFrame = adaptors.NumPy2Ipl(depth)
 
             cvPyrDown(rgbFrame,dwnFrame)
+            cvPyrDown(depth,dwnDepthFrame)
             pyrDwnTime.measureDeltaTime(beatToBeat)
 
             cvCvtColor(dwnFrame,hsvImage,CV_BGR2HSV)
@@ -234,15 +239,22 @@ while True:
                                     distance1 = (12.36 * math.tan(rawDisparity / 2842.5 + 1.1863))*0.3937
                                     distance2 = (100.0 / (-0.00307*rawDisparity+3.33))*0.3937
                                     print "corner=%d c=%d r=%d depth=%d cm=%f cm=%f" % ( i, poly[i].x, poly[i].y, rawDisparity, distance1, distance2 )         
+
             procContoursTime.measureDeltaTime(findContoursTime)
             # display the captured frame, rgbFrameAndThresh, and canny images for debug
             cvShowImage('window-capture',dwnFrame)
             cvShowImage('thresh',rgbFrameAndinRange)
             cvShowImage('canny',canny)
-            cvShowImage('depth',depth1)
+            cvShowImage('depth',dwnDepthFrame)
             showImageTime.measureDeltaTime(procContoursTime)
 
             #print 'i=%d' % ( i )
+            x = 160
+            y = 120
+            rawDisparity = cv.cvGet2D( dwnDepthFrame, y, x )[0]
+            distance1b = (12.36 * math.tan(rawDisparity / 2842.5 + 1.1863))*0.39
+            print "col=%d row=%d %f in" % (x, y, distance1b)
+
             frameProcTime.measureDeltaTime(frameToFrame)
 
 
