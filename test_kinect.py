@@ -41,6 +41,8 @@ global depth, rgb
 
 rgbFrameSize = cvGetSize(rgb)
 depthSize = cvGetSize(depth)
+dwnFrameSize = cvSize(rgbFrameSize.width / 2,rgbFrameSize.height / 2)
+
 print 'rgbSize = %d %d' % (rgbFrameSize.width, rgbFrameSize.height)
 print 'depthSize = %d %d' % (depthSize.width, depthSize.height)
 
@@ -48,13 +50,14 @@ print 'depthSize = %d %d' % (depthSize.width, depthSize.height)
 # Allocate processing chain image buffers the same size as
 # the video frame
 rgbFrame        = cvCreateImage( rgbFrameSize, cv.IPL_DEPTH_8U, 3 )
-hsvImage        = cvCreateImage( rgbFrameSize, cv.IPL_DEPTH_8U, 3 )
-smooth          = cvCreateImage( rgbFrameSize, cv.IPL_DEPTH_8U, 3 )
-inRange         = cvCreateImage( rgbFrameSize, cv.IPL_DEPTH_8U, 1 )
-canny           = cvCreateImage( rgbFrameSize, cv.IPL_DEPTH_8U, 1 )
-canny2          = cvCreateImage( rgbFrameSize, cv.IPL_DEPTH_8U, 1 )
-rgbFrameAndinRange = cvCreateImage( rgbFrameSize, cv.IPL_DEPTH_8U, 3 )
-depth1           = cvCreateImage( rgbFrameSize, cv.IPL_DEPTH_16U, 1 )
+dwnFrame        = cvCreateImage( dwnFrameSize, cv.IPL_DEPTH_8U, 3 )
+hsvImage        = cvCreateImage( dwnFrameSize, cv.IPL_DEPTH_8U, 3 )
+smooth          = cvCreateImage( dwnFrameSize, cv.IPL_DEPTH_8U, 3 )
+inRange         = cvCreateImage( dwnFrameSize, cv.IPL_DEPTH_8U, 1 )
+canny           = cvCreateImage( dwnFrameSize, cv.IPL_DEPTH_8U, 1 )
+canny2          = cvCreateImage( dwnFrameSize, cv.IPL_DEPTH_8U, 1 )
+rgbFrameAndinRange = cvCreateImage( dwnFrameSize, cv.IPL_DEPTH_8U, 3 )
+depth1           = cvCreateImage( dwnFrameSize, cv.IPL_DEPTH_16U, 1 )
 
 # allocate memory for contours
 storContours = cv.cvCreateMemStorage(0);
@@ -70,6 +73,7 @@ beat=0
 frameToFrame = timing( 'frame to frame', 15)
 beatToBeat = timing( 'beat to beat', 15)
 convertColorTime = timing( 'convert color', 15 )
+pyrDwnTime = timing( 'pyrDown', 15 )
 smoothTime= timing( 'smooth', 15 )
 inRangeTime = timing( 'in range', 15 )
 copy1Time= timing( 'copy1', 15 )
@@ -78,6 +82,7 @@ copy2Time = timing( 'copy2', 15 )
 findContoursTime = timing( 'find contours', 15 )
 procContoursTime = timing( 'process contours', 15 )
 showImageTime = timing( 'show image', 15 )
+frameProcTime = timing( 'frameProcTime', 15 )
 
 while True:
     # process beat frame out of "period" beats
@@ -129,23 +134,23 @@ while True:
 
         if beat==0:
             beatToBeat.measureDeltaTime(beatToBeat)
-            #now = time()
-            #if before > 0 :
-            #	deltaTime = now - before
-            #before = now	
             
             # convert frame from Blue.Green.Red to Hue.Saturation.Value
             # image "rgbFrame" -> image "hsvImage"
 
             rgbFrame = adaptors.NumPy2Ipl(rgb)
-            cvCvtColor(rgbFrame,hsvImage,CV_BGR2HSV)
-            convertColorTime.measureDeltaTime(beatToBeat)
+
+            cvPyrDown(rgbFrame,dwnFrame)
+            pyrDwnTime.measureDeltaTime(beatToBeat)
+
+            cvCvtColor(dwnFrame,hsvImage,CV_BGR2HSV)
+            convertColorTime.measureDeltaTime(pyrDwnTime)
 
             # gaussian smooth the Hue.Saturation.Value image
             # image "hsvImage" -> image "smooth"
-            smoothSize=9
-            cvSmooth(hsvImage,smooth,CV_GAUSSIAN,smoothSize,smoothSize)
-            smoothTime.measureDeltaTime(convertColorTime)
+            #smoothSize=9
+            #cvSmooth(hsvImage,smooth,CV_GAUSSIAN,smoothSize,smoothSize)
+            #smoothTime.measureDeltaTime(convertColorTime)
         
         
             # find the target in the range:  minHSV < target < maxHSV
@@ -158,15 +163,15 @@ while True:
                                getConfig().colorFilter.maxSat+1,
                                getConfig().colorFilter.maxVal+1, 
                                0 )
-            cvInRangeS(smooth,minHSV,maxHSV,inRange)
-            inRangeTime.measureDeltaTime(smoothTime)
+            cvInRangeS(hsvImage,minHSV,maxHSV,inRange)
+            inRangeTime.measureDeltaTime(convertColorTime)
         
             # make a debug image whose pixels are 
             # frame when minHSV < threshold < maxHSV
             # and (0,0,0) "Black" elsewhere
             # images "rgbFrame" AND "inRange" -> image "rgbFrameAndinRange"
             cvZero(rgbFrameAndinRange)
-            cvCopy(rgbFrame,rgbFrameAndinRange,inRange)
+            cvCopy(dwnFrame,rgbFrameAndinRange,inRange)
             copy1Time.measureDeltaTime(inRangeTime)
         
             # run Canny edge detection on inRange
@@ -213,7 +218,7 @@ while True:
                         and abs(cvContourArea(poly)) > getConfig().findPoly.minArea 
                         and cvCheckContourConvexity(poly) ):
                             # draw the good polygons on the frame
-                            cv.cvDrawContours(rgbFrame, poly, CV_RGB(0,255,0), CV_RGB(0,255,255), 1, 4, 8)
+                            cv.cvDrawContours(dwnFrame, poly, CV_RGB(0,255,0), CV_RGB(0,255,255), 1, 4, 8)
                             # is polyOnImage ?
                             polyOnImage = True
                             for i in range(4):
@@ -231,27 +236,18 @@ while True:
                                     print "corner=%d c=%d r=%d depth=%d cm=%f cm=%f" % ( i, poly[i].x, poly[i].y, rawDisparity, distance1, distance2 )         
             procContoursTime.measureDeltaTime(findContoursTime)
             # display the captured frame, rgbFrameAndThresh, and canny images for debug
-            cvShowImage('window-capture',rgbFrame)
+            cvShowImage('window-capture',dwnFrame)
             cvShowImage('thresh',rgbFrameAndinRange)
             cvShowImage('canny',canny)
             cvShowImage('depth',depth1)
             showImageTime.measureDeltaTime(procContoursTime)
 
-            print 'i=%d' % ( i )
+            #print 'i=%d' % ( i )
+            frameProcTime.measureDeltaTime(frameToFrame)
+
 
     # wait 1 milliseconds for a key press
     k = cvWaitKey(1)
     if k > -1 :
         printStats()
-#        frameToFrame.printStats()
-#        beatToBeat.printStats()
-#        convertColorTime.printStats()
-#        smoothTime.printStats()
-#        inRangeTime.printStats()
-#        copy1Time.printStats()
-#        cannyTime.printStats()
-#        copy2Time.printStats()
-#        findContoursTime.printStats()
-#        procContoursTime.printStats()
-#        showImageTime.printStats()
         quit()
