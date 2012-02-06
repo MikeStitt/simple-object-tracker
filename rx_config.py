@@ -26,6 +26,7 @@ import select
 import test_pb2
 
 UDP_IP="127.0.0.1"
+#UDP_IP="192.168.1.101"
 UDP_PORT=5005
 
 capSetMsg = test_pb2.captureSettings()

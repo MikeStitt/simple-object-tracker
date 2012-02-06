@@ -29,11 +29,14 @@ from opencv.cv import *
 from opencv import adaptors
 from opencv.highgui import *
 from time import time
-from freenect import sync_get_depth as get_depth, sync_get_video as get_video
+from freenect import sync_get_depth as get_depth, sync_get_video as get_video, init
 import numpy as np
 
 from rx_config import *
 from timing_stats import *
+
+#initialize the camera
+ctx = init()
 
 # Grab an initial frame to get the video size
 global depth, rgb
