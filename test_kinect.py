@@ -171,6 +171,7 @@ while True:
                                getConfig().colorFilter.maxSat+1,
                                getConfig().colorFilter.maxVal+1, 
                                0 )
+            print '%d<%d  %d<%d %d<%d' % ( getConfig().colorFilter.minHue, getConfig().colorFilter.maxHue, getConfig().colorFilter.minSat, getConfig().colorFilter.maxSat, getConfig().colorFilter.minVal, getConfig().colorFilter.maxVal )
             cvInRangeS(hsvImage,minHSV,maxHSV,inRange)
             inRangeTime.measureDeltaTime(convertColorTime)
         
@@ -184,6 +185,7 @@ while True:
         
             # run Canny edge detection on inRange
             # image "inRange" -> image "canny"
+            print "t1=%d t2=%d a=%d" % (getConfig().findPoly.cannyThreshold1, getConfig().findPoly.cannyThreshold2, getConfig().findPoly.cannyAperature )
             cvCanny(inRange,canny,getConfig().findPoly.cannyThreshold1,
                     getConfig().findPoly.cannyThreshold2,
                     getConfig().findPoly.cannyAperature)

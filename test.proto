@@ -45,4 +45,5 @@ message captureSettings {
   required int32               magicTest = 1;
   required colorFilterSettings colorFilter = 2;
   required findPolySettings    findPoly = 3;
+  required int32 	       videoOut =4;
 }  
