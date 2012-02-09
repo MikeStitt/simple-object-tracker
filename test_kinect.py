@@ -25,6 +25,8 @@
 # Import Libraries
 import sys
 import math
+import os
+from cv2 import imwrite
 from opencv.cv import *
 from opencv import adaptors
 from opencv.highgui import *
@@ -75,6 +77,10 @@ now = 0
 before = 0
 deltaTime = 0
 beat=0
+
+imageDir = '/home/enigma/images/'
+
+currentImage = open(imageDir+'cur.txt','w')
 
 frameToFrame = timing( 'frame to frame', 15)
 beatToBeat = timing( 'beat to beat', 15)
@@ -251,6 +257,17 @@ while True:
             cvShowImage('thresh',rgbFrameAndinRange)
             cvShowImage('canny',canny)
             cvShowImage('depth',dwnDepthFrame)
+
+            idx=i%10
+            fileName = imageDir+str(idx)+'.jpg'
+
+            imwrite(fileName,adaptors.Ipl2NumPy(dwnFrame))
+
+            
+            currentImage.seek(0)
+            currentImage.write(str(idx))
+            currentImage.flush()
+
             showImageTime.measureDeltaTime(procContoursTime)
 
             #print 'i=%d' % ( i )

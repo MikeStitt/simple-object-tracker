@@ -45,7 +45,22 @@ class sendCtrl(QObject):
                         socket.SOCK_DGRAM ) # UDP
 	    
     def send(self):
-	    self.sock.sendto( self.capSetMsg.SerializeToString(), (UDP_IP, UDP_PORT) )
+#	    self.sock.sendto( self.capSetMsg.SerializeToString(), (UDP_IP, UDP_PORT) )
+        self.sock.sendto( '0' + '>' +str(self.capSetMsg.colorFilter.minHue), (UDP_IP, UDP_PORT) )
+        self.sock.sendto( '1' + '>' +str(self.capSetMsg.colorFilter.maxHue), (UDP_IP, UDP_PORT) )
+        self.sock.sendto( '2' + '>' +str(self.capSetMsg.colorFilter.minSat), (UDP_IP, UDP_PORT) )
+        self.sock.sendto( '3' + '>' +str(self.capSetMsg.colorFilter.maxSat), (UDP_IP, UDP_PORT) )
+        self.sock.sendto( '4' + '>' +str(self.capSetMsg.colorFilter.minVal), (UDP_IP, UDP_PORT) )
+        self.sock.sendto( '5' + '>' +str(self.capSetMsg.colorFilter.maxVal), (UDP_IP, UDP_PORT) )
+        self.sock.sendto( '7' + '>' +str(self.capSetMsg.findPoly.cannyThreshold1), (UDP_IP, UDP_PORT) )
+        self.sock.sendto( '8' + '>' +str(self.capSetMsg.findPoly.cannyThreshold2), (UDP_IP, UDP_PORT) )
+        self.sock.sendto( '9' + '>' +str(self.capSetMsg.findPoly.cannyAperature), (UDP_IP, UDP_PORT) )
+        self.sock.sendto( '10' + '>' +str(self.capSetMsg.findPoly.minPerimeter), (UDP_IP, UDP_PORT) )
+        self.sock.sendto( '11' + '>' +str(self.capSetMsg.findPoly.minArea), (UDP_IP, UDP_PORT) )
+        self.sock.sendto( '12' + '>' +str(self.capSetMsg.findPoly.deviationRatio), (UDP_IP, UDP_PORT) )
+        self.sock.sendto( '14' + '>' +str(self.capSetMsg.videoOut), (UDP_IP, UDP_PORT) )
+
+        self.sock.sendto( '13' + '>' +str(self.capSetMsg.colorFilter.beatPeriod), (UDP_IP, UDP_PORT) )
 
     def newMinHue(self,x):
 	    self.capSetMsg.colorFilter.minHue = x
